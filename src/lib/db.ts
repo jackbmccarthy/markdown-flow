@@ -6,9 +6,25 @@ import { File } from "../entities/File"
 import { FileVersion } from "../entities/FileVersion"
 import { Comment } from "../entities/Comment"
 
+// Helper to handle CA Cert from env
+const getSslConfig = () => {
+  const ca = process.env.DB_CA_CERT;
+  if (ca) {
+    return {
+      rejectUnauthorized: true,
+      ca: ca.replace(/\\n/g, '\n'), // Fix newlines if passed as string literal
+    };
+  }
+  // Fallback for dev/local without certs
+  return process.env.NODE_ENV === 'production' 
+    ? { rejectUnauthorized: false } 
+    : undefined;
+};
+
 const AppDataSource = new DataSource({
   type: "postgres",
   url: process.env.DATABASE_URL,
+  ssl: getSslConfig(),
   synchronize: true, // Auto-create tables (dev only)
   logging: false,
   entities: [User, Project, File, FileVersion, Comment],
