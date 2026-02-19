@@ -6,6 +6,18 @@ import { authConfig } from "@/auth.config"
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   trustHost: true,
+  session: { strategy: "jwt" },
+  cookies: {
+    sessionToken: {
+      name: `authjs.session-token`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false, // development
+      },
+    },
+  },
   providers: [
     Credentials({
       credentials: {
@@ -25,7 +37,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
           if (username === adminUsername && password === adminPassword) {
             return {
-              id: "1",
+              id: "admin-id",
+              name: "Admin User",
               email: adminUsername,
             }
           }
@@ -39,7 +52,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.email = user.email; // Admin username
+        token.email = user.email;
       }
       return token;
     },
