@@ -23,6 +23,10 @@ export async function authenticate(
           return "Something went wrong.";
       }
     }
+    // Re-throw redirect errors so Next.js can handle them
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error;
+    }
     throw error;
   }
   
