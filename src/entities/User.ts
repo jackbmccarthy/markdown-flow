@@ -36,4 +36,7 @@ export class User {
 
   @OneToMany("Comment", (comment: any) => comment.author)
   comments!: any[]
+
+  @OneToMany("ApiKey", (key: any) => key.user)
+  apiKeys!: any[]
 }

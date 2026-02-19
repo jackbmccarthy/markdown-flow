@@ -5,6 +5,7 @@ import { Project } from "../entities/Project"
 import { File } from "../entities/File"
 import { FileVersion } from "../entities/FileVersion"
 import { Comment } from "../entities/Comment"
+import { ApiKey } from "../entities/ApiKey"
 
 // Helper to handle CA Cert from env
 const getSslConfig = () => {
@@ -27,7 +28,7 @@ const AppDataSource = new DataSource({
   ssl: getSslConfig(),
   synchronize: true, // Auto-create tables (dev only)
   logging: false,
-  entities: [User, Project, File, FileVersion, Comment],
+  entities: [User, Project, File, FileVersion, Comment, ApiKey],
   migrations: [],
   subscribers: [],
 })

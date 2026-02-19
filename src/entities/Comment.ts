@@ -19,6 +19,9 @@ export class Comment {
   @Column()
   fileId!: string
 
+  @Column({ nullable: true })
+  lineNumber?: number
+
   @ManyToOne("File", (file: any) => file.comments)
   file!: any
 
