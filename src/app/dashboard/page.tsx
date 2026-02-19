@@ -1,4 +1,4 @@
-import { auth, signOut } from "@/auth";
+import { getSession, logout } from "@/lib/auth-service";
 import { getDb } from "@/lib/db";
 import { Project } from "@/entities/Project";
 import { User } from "@/entities/User";
@@ -15,17 +15,20 @@ import {
   Terminal as TerminalIcon,
   LayoutDashboard
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) redirect("/login");
 
   const db = await getDb();
-  const user = await db.getRepository(User).findOneBy({ email: session.user.email! });
-  if (!user) redirect("/login");
+  // Using email as username/identifier
+  const user = await db.getRepository(User).findOneBy({ email: session.user.username });
+  if (!user) {
+    console.error("User not found in DB for session:", session.user.username);
+    redirect("/login");
+  }
 
   const projects = await db.getRepository(Project).find({
     where: { ownerId: user.id },
@@ -38,15 +41,23 @@ export default async function DashboardPage() {
     if (!name) return;
 
     const db = await getDb();
-    const user = await db.getRepository(User).findOneBy({ email: session?.user?.email! });
+    const session = await getSession();
+    const user = await db.getRepository(User).findOneBy({ email: session?.user?.username });
     
-    const project = new Project();
-    project.name = name;
-    project.owner = user;
-    project.ownerId = user!.id;
-    
-    await db.getRepository(Project).save(project);
-    revalidatePath("/dashboard");
+    if (user) {
+      const project = new Project();
+      project.name = name;
+      project.owner = user;
+      project.ownerId = user.id;
+      await db.getRepository(Project).save(project);
+      revalidatePath("/dashboard");
+    }
+  }
+
+  async function handleSignOut() {
+    "use server";
+    await logout();
+    redirect("/login");
   }
 
   return (
@@ -78,10 +89,7 @@ export default async function DashboardPage() {
         </nav>
 
         <div className="p-4 border-t border-border/50">
-          <form action={async () => {
-            "use server";
-            await signOut();
-          }}>
+          <form action={handleSignOut}>
             <button className="flex items-center gap-3 px-4 py-2 w-full text-muted-foreground hover:text-red-400 hover:bg-red-400/5 rounded-lg transition-colors text-sm">
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>
@@ -97,7 +105,7 @@ export default async function DashboardPage() {
             <h2 className="font-semibold text-lg">Project Dashboard</h2>
             <div className="h-4 w-px bg-border mx-2" />
             <span className="text-xs font-mono text-muted-foreground bg-secondary px-2 py-1 rounded">
-              USER: {session.user.email}
+              USER: {session.user.username}
             </span>
           </div>
           

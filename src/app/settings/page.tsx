@@ -1,4 +1,4 @@
-import { auth, signOut } from "@/auth";
+import { getSession, logout } from "@/lib/auth-service";
 import { getDb } from "@/lib/db";
 import { User } from "@/entities/User";
 import { ApiKey } from "@/entities/ApiKey";
@@ -23,11 +23,11 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) redirect("/login");
 
   const db = await getDb();
-  const user = await db.getRepository(User).findOneBy({ email: session.user.email! });
+  const user = await db.getRepository(User).findOneBy({ email: session.user.username });
   if (!user) redirect("/login");
 
   const apiKeys = await db.getRepository(ApiKey).find({
@@ -41,30 +41,44 @@ export default async function SettingsPage() {
     if (!name) return { rawKey: "" };
 
     const db = await getDb();
-    const user = await db.getRepository(User).findOneBy({ email: session?.user?.email! });
+    const session = await getSession();
+    const user = await db.getRepository(User).findOneBy({ email: session?.user?.username });
     
     const rawKey = "sk-" + randomBytes(32).toString("hex");
     const hashedKey = await hash(rawKey, 10);
     const prefix = rawKey.substring(0, 10) + "...";
 
-    const apiKey = new ApiKey();
-    apiKey.name = name;
-    apiKey.keyHash = hashedKey;
-    apiKey.keyPrefix = prefix;
-    apiKey.user = user!;
-    apiKey.userId = user!.id;
-    
-    await db.getRepository(ApiKey).save(apiKey);
-    revalidatePath("/settings");
-    
-    return { rawKey };
+    if (user) {
+      const apiKey = new ApiKey();
+      apiKey.name = name;
+      apiKey.keyHash = hashedKey;
+      apiKey.keyPrefix = prefix;
+      apiKey.user = user;
+      apiKey.userId = user.id;
+      
+      await db.getRepository(ApiKey).save(apiKey);
+      revalidatePath("/settings");
+      
+      return { rawKey };
+    }
+    return { rawKey: "" };
   }
 
   async function revokeApiKey(id: string) {
     "use server";
     const db = await getDb();
-    await db.getRepository(ApiKey).delete({ id, userId: user!.id });
-    revalidatePath("/settings");
+    const session = await getSession();
+    const user = await db.getRepository(User).findOneBy({ email: session?.user?.username });
+    if (user) {
+      await db.getRepository(ApiKey).delete({ id, userId: user.id });
+      revalidatePath("/settings");
+    }
+  }
+
+  async function handleSignOut() {
+    "use server";
+    await logout();
+    redirect("/login");
   }
 
   return (
@@ -90,10 +104,7 @@ export default async function SettingsPage() {
         </nav>
 
         <div className="p-4 border-t border-border/50">
-          <form action={async () => {
-            "use server";
-            await signOut();
-          }}>
+          <form action={handleSignOut}>
             <button className="flex items-center gap-3 px-4 py-2 w-full text-muted-foreground hover:text-red-400 hover:bg-red-400/5 rounded-lg transition-colors text-sm">
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>

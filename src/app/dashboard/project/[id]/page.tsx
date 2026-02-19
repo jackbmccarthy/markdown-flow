@@ -1,4 +1,4 @@
-import { auth, signOut } from "@/auth";
+import { getSession, logout } from "@/lib/auth-service";
 import { getDb } from "@/lib/db";
 import { File } from "@/entities/File";
 import { User } from "@/entities/User";
@@ -17,17 +17,16 @@ import {
   LogOut,
   Terminal as TerminalIcon
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) redirect("/login");
 
   const db = await getDb();
-  const user = await db.getRepository(User).findOneBy({ email: session.user.email! });
+  const user = await db.getRepository(User).findOneBy({ email: session.user.username });
   if (!user) redirect("/login");
 
   const project = await db.getRepository(Project).findOneBy({ id });
@@ -38,9 +37,15 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
     order: { createdAt: "DESC" },
   });
 
+  async function handleSignOut() {
+    "use server";
+    await logout();
+    redirect("/login");
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
-      {/* Sidebar (Duplicate for consistency) */}
+      {/* Sidebar */}
       <aside className="w-64 border-r border-border/50 bg-secondary/30 hidden lg:flex flex-col glass">
         <div className="p-6 border-b border-border/50 flex items-center gap-3">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
@@ -67,10 +72,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
         </nav>
 
         <div className="p-4 border-t border-border/50">
-          <form action={async () => {
-            "use server";
-            await signOut();
-          }}>
+          <form action={handleSignOut}>
             <button className="flex items-center gap-3 px-4 py-2 w-full text-muted-foreground hover:text-red-400 hover:bg-red-400/5 rounded-lg transition-colors text-sm">
               <LogOut className="w-4 h-4" />
               <span>Sign Out</span>

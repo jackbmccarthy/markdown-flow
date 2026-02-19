@@ -1,4 +1,4 @@
-import { auth, signOut } from "@/auth";
+import { getSession, logout } from "@/lib/auth-service";
 import { getDb } from "@/lib/db";
 import { File } from "@/entities/File";
 import { User } from "@/entities/User";
@@ -23,11 +23,11 @@ export const dynamic = "force-dynamic";
 
 export default async function FilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await auth();
+  const session = await getSession();
   if (!session?.user) redirect("/login");
 
   const db = await getDb();
-  const user = await db.getRepository(User).findOneBy({ email: session.user.email! });
+  const user = await db.getRepository(User).findOneBy({ email: session.user.username });
   if (!user) redirect("/login");
 
   const file = await db.getRepository(File).findOneBy({ id });
@@ -57,26 +57,32 @@ export default async function FilePage({ params }: { params: Promise<{ id: strin
   async function addComment(lineNumber: number, content: string) {
     "use server";
     if (!content) return;
-    const session = await auth();
-    if (!session?.user?.email) return;
+    const session = await getSession();
+    const user = await getDb().then(db => db.getRepository(User).findOneBy({ email: session?.user?.username }));
+    
+    if (user) {
+      const comment = new Comment();
+      comment.content = content;
+      comment.lineNumber = lineNumber;
+      comment.fileId = id;
+      comment.author = user;
+      comment.authorId = user.id;
+      
+      const db = await getDb();
+      await db.getRepository(Comment).save(comment);
+      revalidatePath(`/dashboard/file/${id}`);
+    }
+  }
 
-    const db = await getDb();
-    const user = await db.getRepository(User).findOneBy({ email: session.user.email });
-    
-    const comment = new Comment();
-    comment.content = content;
-    comment.lineNumber = lineNumber;
-    comment.fileId = id;
-    comment.author = user;
-    comment.authorId = user!.id;
-    
-    await db.getRepository(Comment).save(comment);
-    revalidatePath(`/dashboard/file/${id}`);
+  async function handleSignOut() {
+    "use server";
+    await logout();
+    redirect("/login");
   }
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
-      {/* Sidebar (Mini variant) */}
+      {/* Sidebar */}
       <aside className="w-16 border-r border-border/50 bg-secondary/30 flex flex-col items-center py-6 gap-8 glass">
         <Link href="/dashboard" className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center hover:opacity-80 transition-all">
           <TerminalIcon className="w-6 h-6 text-primary-foreground" />
@@ -94,10 +100,7 @@ export default async function FilePage({ params }: { params: Promise<{ id: strin
           </Link>
         </nav>
 
-        <form action={async () => {
-          "use server";
-          await signOut();
-        }}>
+        <form action={handleSignOut}>
           <button className="w-10 h-10 flex items-center justify-center rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-400/5 transition-all">
             <LogOut className="w-5 h-5" />
           </button>
