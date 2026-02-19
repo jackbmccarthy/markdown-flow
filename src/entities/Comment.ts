@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne } from "typeorm"
-import { User } from "./User"
-import { File } from "./File"
+// import { User } from "./User"
+// import { File } from "./File"
 
 @Entity()
 export class Comment {
@@ -13,14 +13,14 @@ export class Comment {
   @Column()
   authorId!: string
 
-  @ManyToOne(() => User, (user) => user.comments)
-  author!: User
+  @ManyToOne("User", (user: any) => user.comments)
+  author!: any
 
   @Column()
   fileId!: string
 
-  @ManyToOne(() => File, (file) => file.comments)
-  file!: File
+  @ManyToOne("File", (file: any) => file.comments)
+  file!: any
 
   @CreateDateColumn()
   createdAt!: Date

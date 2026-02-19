@@ -1,5 +1,5 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne } from "typeorm"
-import { File } from "./File"
+// import { File } from "./File"
 
 @Entity()
 export class FileVersion {
@@ -12,8 +12,8 @@ export class FileVersion {
   @Column()
   fileId!: string
 
-  @ManyToOne(() => File, (file) => file.versions)
-  file!: File
+  @ManyToOne("File", (file: any) => file.versions)
+  file!: any
 
   @CreateDateColumn()
   createdAt!: Date

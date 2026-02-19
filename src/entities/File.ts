@@ -1,7 +1,8 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, OneToMany } from "typeorm"
-import { Project } from "./Project"
-import { FileVersion } from "./FileVersion"
-import { Comment } from "./Comment"
+// Circular fixes
+// import { Project } from "./Project"
+// import { FileVersion } from "./FileVersion"
+// import { Comment } from "./Comment"
 
 @Entity()
 export class File {
@@ -14,14 +15,14 @@ export class File {
   @Column()
   projectId!: string
 
-  @ManyToOne(() => Project, (project) => project.files)
-  project!: Project
+  @ManyToOne("Project", (project: any) => project.files)
+  project!: any
 
-  @OneToMany(() => FileVersion, (version) => version.file)
-  versions!: FileVersion[]
+  @OneToMany("FileVersion", (version: any) => version.file)
+  versions!: any[]
 
-  @OneToMany(() => Comment, (comment) => comment.file)
-  comments!: Comment[]
+  @OneToMany("Comment", (comment: any) => comment.file)
+  comments!: any[]
 
   @CreateDateColumn()
   createdAt!: Date

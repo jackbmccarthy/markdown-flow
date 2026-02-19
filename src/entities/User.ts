@@ -1,6 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from "typeorm"
-import { Project } from "./Project"
-import { Comment } from "./Comment"
+// import { Project } from "./Project" // Circular dep fix
+// import { Comment } from "./Comment" // Circular dep fix
 
 export enum UserRole {
   ADMIN = "ADMIN",
@@ -31,9 +31,9 @@ export class User {
   @UpdateDateColumn()
   updatedAt!: Date
 
-  @OneToMany(() => Project, (project) => project.owner)
-  projects!: Project[]
+  @OneToMany("Project", (project: any) => project.owner)
+  projects!: any[]
 
-  @OneToMany(() => Comment, (comment) => comment.author)
-  comments!: Comment[]
+  @OneToMany("Comment", (comment: any) => comment.author)
+  comments!: any[]
 }
