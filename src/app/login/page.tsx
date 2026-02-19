@@ -1,11 +1,13 @@
 import { login } from "@/lib/auth-service";
 import { redirect } from "next/navigation";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string };
+  searchParams: Promise<{ error?: string }>;
 }) {
+  const params = await searchParams;
+
   async function action(formData: FormData) {
     "use server";
     const success = await login(formData);
@@ -44,8 +46,8 @@ export default function LoginPage({
             />
           </div>
 
-          {searchParams.error && (
-            <p className="text-red-500 text-sm text-center font-mono">{searchParams.error}</p>
+          {params.error && (
+            <p className="text-red-500 text-sm text-center font-mono">{params.error}</p>
           )}
 
           <button
