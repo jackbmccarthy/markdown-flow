@@ -1,6 +1,6 @@
 import "reflect-metadata"
 import { DataSource } from "typeorm"
-import { User } from "../entities/User"
+import { User, UserRole } from "../entities/User"
 import { Project } from "../entities/Project"
 import { File } from "../entities/File"
 import { FileVersion } from "../entities/FileVersion"
@@ -45,8 +45,23 @@ if (process.env.NODE_ENV !== "production") {
 export const getDb = async () => {
   if (!dataSource.isInitialized) {
     await dataSource.initialize()
-      .then(() => {
+      .then(async () => {
         console.log("Data Source has been initialized!")
+        
+        // Ensure Admin user exists in DB for relations
+        const adminUsername = process.env.ADMIN_USERNAME;
+        if (adminUsername) {
+          const repo = dataSource.getRepository(User);
+          const admin = await repo.findOneBy({ email: adminUsername });
+          if (!admin) {
+            const newAdmin = new User();
+            newAdmin.email = adminUsername;
+            newAdmin.passwordHash = "ENV_AUTH"; // Not used for actual auth
+            newAdmin.role = UserRole.ADMIN;
+            await repo.save(newAdmin);
+            console.log("Admin user created in DB");
+          }
+        }
       })
       .catch((err) => {
         console.error("Error during Data Source initialization", err)
