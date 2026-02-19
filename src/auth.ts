@@ -1,9 +1,6 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { z } from "zod"
-import bcrypt from "bcryptjs"
-import { getDb } from "@/lib/db"
-import { User } from "@/entities/User"
 import { authConfig } from "@/auth.config"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -16,17 +13,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       authorize: async (credentials) => {
         const parsedCredentials = z
-          .object({ email: z.string().email(), password: z.string().min(6) })
+          .object({ email: z.string(), password: z.string() })
           .safeParse(credentials)
 
         if (parsedCredentials.success) {
           const { email, password } = parsedCredentials.data
-          const db = await getDb()
-          const user = await db.getRepository(User).findOneBy({ email })
-          if (!user) return null
-          const passwordsMatch = await bcrypt.compare(password, user.passwordHash)
+          
+          const adminUsername = process.env.ADMIN_USERNAME;
+          const adminPassword = process.env.ADMIN_PASSWORD;
 
-          if (passwordsMatch) return user
+          if (email === adminUsername && password === adminPassword) {
+            return {
+              id: "1",
+              name: "Admin",
+              email: adminUsername,
+            }
+          }
         }
 
         return null
