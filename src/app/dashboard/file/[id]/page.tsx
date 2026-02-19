@@ -1,32 +1,44 @@
-import { auth } from "@/auth";
+import { auth, signOut } from "@/auth";
 import { getDb } from "@/lib/db";
 import { File } from "@/entities/File";
 import { User } from "@/entities/User";
 import { Comment } from "@/entities/Comment";
+import { FileVersion } from "@/entities/FileVersion";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import MarkdownViewer from "@/components/MarkdownViewer";
+import { 
+  ArrowLeft, 
+  Settings, 
+  LogOut, 
+  LayoutDashboard,
+  Terminal as TerminalIcon,
+  Activity,
+  History,
+  MessageSquare
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
-export default async function FilePage({ params }: { params: { id: string } }) {
+export default async function FilePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const session = await auth();
-  if (!session?.user?.email) redirect("/login");
+  if (!session?.user) redirect("/login");
 
   const db = await getDb();
-  const user = await db.getRepository(User).findOneBy({ email: session.user.email });
+  const user = await db.getRepository(User).findOneBy({ email: session.user.email! });
   if (!user) redirect("/login");
 
-  const file = await db.getRepository(File).findOneBy({ id: params.id });
+  const file = await db.getRepository(File).findOneBy({ id });
   if (!file) redirect("/dashboard");
 
-  const versions = await db.getRepository("FileVersion").find({
+  const versions = await db.getRepository(FileVersion).find({
     where: { fileId: file.id },
     order: { createdAt: "DESC" },
   });
 
-  const content = versions.length > 0 ? versions[0].content : "No content";
+  const content = versions.length > 0 ? versions[0].content : "No content available.";
 
   const comments = await db.getRepository(Comment).find({
     where: { fileId: file.id },
@@ -34,12 +46,11 @@ export default async function FilePage({ params }: { params: { id: string } }) {
     order: { createdAt: "ASC" },
   });
 
-  // Transform comments to match interface
   const formattedComments = comments.map(c => ({
     id: c.id,
     lineNumber: c.lineNumber,
     content: c.content,
-    author: { email: c.author.email },
+    author: { email: (c.author as any).email },
     createdAt: c.createdAt.toISOString(),
   }));
 
@@ -55,32 +66,84 @@ export default async function FilePage({ params }: { params: { id: string } }) {
     const comment = new Comment();
     comment.content = content;
     comment.lineNumber = lineNumber;
-    comment.fileId = params.id;
+    comment.fileId = id;
     comment.author = user;
     comment.authorId = user!.id;
     
     await db.getRepository(Comment).save(comment);
-    revalidatePath(`/dashboard/file/${params.id}`);
+    revalidatePath(`/dashboard/file/${id}`);
   }
 
   return (
-    <div className="p-8 h-screen flex flex-col">
-      <div className="mb-4 flex justify-between items-center">
-        <div>
-          <Link href={`/dashboard/project/${file.projectId}`} className="text-blue-500 hover:underline text-sm mb-1 inline-block">&larr; Back to Project</Link>
-          <h1 className="text-2xl font-bold">{file.name}</h1>
-        </div>
-        <div className="text-sm text-gray-500">
-          v{versions.length}
-        </div>
-      </div>
+    <div className="flex h-screen bg-background overflow-hidden">
+      {/* Sidebar (Mini variant) */}
+      <aside className="w-16 border-r border-border/50 bg-secondary/30 flex flex-col items-center py-6 gap-8 glass">
+        <Link href="/dashboard" className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center hover:opacity-80 transition-all">
+          <TerminalIcon className="w-6 h-6 text-primary-foreground" />
+        </Link>
+        
+        <nav className="flex-1 flex flex-col gap-4">
+          <Link href="/dashboard" title="Dashboard" className="w-10 h-10 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-white/5 hover:text-white transition-all">
+            <LayoutDashboard className="w-5 h-5" />
+          </Link>
+          <Link href={`/dashboard/project/${file.projectId}`} title="Project Files" className="w-10 h-10 flex items-center justify-center rounded-xl bg-accent/10 text-accent transition-all border border-accent/20">
+            <Activity className="w-5 h-5" />
+          </Link>
+          <Link href="/settings" title="Settings" className="w-10 h-10 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-white/5 hover:text-white transition-all">
+            <Settings className="w-5 h-5" />
+          </Link>
+        </nav>
 
-      <div className="flex-1 overflow-hidden">
-        <MarkdownViewer 
-          content={content} 
-          comments={formattedComments} 
-          onAddComment={addComment} 
-        />
+        <form action={async () => {
+          "use server";
+          await signOut();
+        }}>
+          <button className="w-10 h-10 flex items-center justify-center rounded-xl text-muted-foreground hover:text-red-400 hover:bg-red-400/5 transition-all">
+            <LogOut className="w-5 h-5" />
+          </button>
+        </form>
+      </aside>
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 border-b border-border/50 flex items-center justify-between px-8 bg-background/50 backdrop-blur-sm z-20">
+          <div className="flex items-center gap-4 min-w-0">
+            <Link 
+              href={`/dashboard/project/${file.projectId}`}
+              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div className="h-4 w-px bg-border shrink-0" />
+            <div className="flex flex-col min-w-0">
+              <h2 className="font-bold text-lg text-white truncate">{file.name}</h2>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                  <History className="w-2 h-2" /> v{versions.length}.0
+                </span>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-primary flex items-center gap-1">
+                  <MessageSquare className="w-2 h-2" /> {comments.length} Comments
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button className="h-9 px-4 bg-secondary border border-border/50 rounded-lg text-xs font-bold hover:bg-secondary/80 transition-all uppercase tracking-wider">
+              Download
+            </button>
+            <button className="h-9 px-4 bg-white text-black rounded-lg text-xs font-bold hover:opacity-90 transition-all uppercase tracking-wider">
+              Approve
+            </button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-hidden bg-[#0d0f14]">
+          <MarkdownViewer 
+            content={content} 
+            comments={formattedComments} 
+            onAddComment={addComment} 
+          />
+        </div>
       </div>
     </div>
   );

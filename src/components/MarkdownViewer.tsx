@@ -3,6 +3,8 @@
 import React, { useState, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { MessageSquare, Clock, Send, X, Hash } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface Comment {
   id: string;
@@ -18,27 +20,38 @@ interface MarkdownViewerProps {
   onAddComment: (lineNumber: number, content: string) => void;
 }
 
-// Separate component to avoid re-renders
-const BlockWrapper = ({ children, node, comments, onSelect }: any) => {
+const BlockWrapper = ({ children, node, comments, onSelect, isSelected }: any) => {
   const lineNumber = node?.position?.start?.line;
   if (!lineNumber) return <>{children}</>;
 
   const hasComments = comments.some((c: any) => c.lineNumber === lineNumber);
 
   return (
-    <div className="relative group mb-4" id={`line-${lineNumber}`}>
-      <div className={`transition-all duration-200 border-l-4 pl-4 ${hasComments ? "border-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/20" : "border-transparent hover:border-gray-200 dark:hover:border-gray-700"}`}>
+    <div 
+      className={cn(
+        "relative group py-1 px-4 border-l-2 transition-all duration-200",
+        hasComments ? "border-primary bg-primary/5" : "border-transparent hover:border-white/10 hover:bg-white/[0.02]",
+        isSelected && "border-accent bg-accent/5 ring-1 ring-accent/20"
+      )} 
+      id={`line-${lineNumber}`}
+    >
+      {/* Line Number Gutter */}
+      <div className="absolute left-[-48px] top-1/2 -translate-y-1/2 w-10 text-right text-[10px] font-mono text-muted-foreground/30 select-none opacity-0 group-hover:opacity-100 transition-opacity">
+        {lineNumber}
+      </div>
+
+      <div className="prose prose-invert prose-sm max-w-none">
         {children}
       </div>
+
       <button 
-        className="absolute right-0 top-0 opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-500 transition-opacity p-1 bg-white dark:bg-gray-800 rounded shadow-sm border"
+        className="absolute right-4 top-2 opacity-0 group-hover:opacity-100 transition-all p-1.5 bg-secondary border border-border rounded-lg shadow-xl hover:text-primary hover:border-primary/50"
         onClick={(e) => {
           e.stopPropagation();
           onSelect(lineNumber);
         }}
-        title={`Add comment to line ${lineNumber}`}
       >
-        💬
+        <MessageSquare className="w-3.5 h-3.5" />
       </button>
     </div>
   );
@@ -57,7 +70,14 @@ export default function MarkdownViewer({ content, comments, onAddComment }: Mark
   };
 
   const components = useMemo(() => {
-    const wrapper = (props: any) => <BlockWrapper {...props} comments={comments} onSelect={setSelectedLine} />;
+    const wrapper = (props: any) => (
+      <BlockWrapper 
+        {...props} 
+        comments={comments} 
+        onSelect={setSelectedLine} 
+        isSelected={selectedLine === props.node?.position?.start?.line}
+      />
+    );
     return {
       p: wrapper,
       h1: wrapper,
@@ -67,16 +87,21 @@ export default function MarkdownViewer({ content, comments, onAddComment }: Mark
       h5: wrapper,
       h6: wrapper,
       blockquote: wrapper,
-      pre: wrapper,
+      pre: ({ children }: any) => (
+        <pre className="bg-background border border-border rounded-lg p-4 my-4 font-mono text-xs overflow-x-auto glass">
+          {children}
+        </pre>
+      ),
       ul: wrapper,
       ol: wrapper,
     };
-  }, [comments]); // Re-create components only when comments change
+  }, [comments, selectedLine]);
 
   return (
-    <div className="flex flex-col md:flex-row gap-4 h-[calc(100vh-200px)]">
-      <div className="flex-1 bg-white dark:bg-gray-800 p-8 shadow rounded overflow-y-auto">
-        <div className="prose dark:prose-invert max-w-none">
+    <div className="flex h-full divide-x divide-border/50">
+      {/* Document Pane */}
+      <div className="flex-1 overflow-y-auto bg-background custom-scrollbar">
+        <div className="max-w-4xl mx-auto py-12 px-12 lg:px-24">
           <ReactMarkdown 
             remarkPlugins={[remarkGfm]}
             components={components}
@@ -86,52 +111,94 @@ export default function MarkdownViewer({ content, comments, onAddComment }: Mark
         </div>
       </div>
       
-      <div className="w-full md:w-80 bg-gray-50 dark:bg-gray-900 border md:border-l p-4 flex flex-col rounded shadow h-full">
-        <h3 className="font-bold mb-4 text-lg border-b pb-2">Comments</h3>
+      {/* Comments Pane */}
+      <div className="w-96 flex flex-col bg-secondary/20 glass">
+        <div className="h-14 flex items-center justify-between px-6 border-b border-border/50 bg-background/30">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold uppercase tracking-widest">Feed</span>
+          </div>
+          <span className="text-[10px] font-mono font-bold bg-white/5 px-2 py-0.5 rounded text-muted-foreground">
+            {comments.length} TOTAL
+          </span>
+        </div>
         
-        <div className="flex-1 overflow-y-auto pr-2 space-y-4">
-          {comments.length === 0 && <p className="text-gray-500 text-sm text-center py-4">No comments yet.</p>}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+          {comments.length === 0 && !selectedLine && (
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-30 grayscale">
+              <MessageSquare className="w-12 h-12 mb-4" />
+              <p className="text-xs font-medium max-w-[180px]">No annotations found. Hover over text to add feedback.</p>
+            </div>
+          )}
+
           {comments.map(c => (
-            <div key={c.id} className="p-3 bg-white dark:bg-gray-800 border rounded shadow-sm text-sm hover:border-blue-300 transition-colors cursor-pointer" onClick={() => {
-              document.getElementById(`line-${c.lineNumber}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }}>
-              <div className="flex justify-between items-start mb-1 border-b pb-1">
-                <span className="font-semibold text-xs text-blue-600 dark:text-blue-400">
-                  {c.author.email.split('@')[0]}
-                </span>
-                <span className="text-xs text-gray-400 bg-gray-100 dark:bg-gray-700 px-1 rounded">
-                  Line {c.lineNumber}
-                </span>
+            <div 
+              key={c.id} 
+              className="group relative animate-in fade-in slide-in-from-right-4 duration-300"
+              onClick={() => {
+                document.getElementById(`line-${c.lineNumber}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <span className="text-[10px] font-bold text-primary">{c.author.email[0].toUpperCase()}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-white truncate">{c.author.email.split('@')[0]}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
+                      <Hash className="w-2.5 h-2.5" /> {c.lineNumber}
+                    </span>
+                  </div>
+                  <div className="bg-background border border-border/50 rounded-xl p-3 shadow-sm group-hover:border-primary/30 transition-colors">
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{c.content}</p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 opacity-40">
+                    <Clock className="w-2.5 h-2.5" />
+                    <span className="text-[10px] font-medium uppercase tracking-tight">
+                      {new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
               </div>
-              <p className="text-gray-800 dark:text-gray-200 mt-1 whitespace-pre-wrap">{c.content}</p>
-              <div className="text-xs text-gray-400 mt-2 text-right">{new Date(c.createdAt).toLocaleDateString()}</div>
             </div>
           ))}
         </div>
 
+        {/* Comment Input Overlay */}
         {selectedLine && (
-          <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded shadow-lg animate-in fade-in slide-in-from-bottom-4">
-            <div className="flex justify-between items-center mb-2">
-              <h4 className="font-bold text-sm text-blue-800 dark:text-blue-200">New Comment (Line {selectedLine})</h4>
-              <button onClick={() => setSelectedLine(null)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-lg leading-none">&times;</button>
+          <div className="p-6 bg-background border-t border-border/50 animate-in slide-in-from-bottom-full duration-300 shadow-[0_-20px_50px_rgba(0,0,0,0.5)]">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded bg-accent/10 border border-accent/20 flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-accent">{selectedLine}</span>
+                </div>
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider">New Annotation</h4>
+              </div>
+              <button 
+                onClick={() => setSelectedLine(null)} 
+                className="text-muted-foreground hover:text-white transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
+            
             <textarea 
-              className="w-full p-2 border rounded text-sm mb-2 resize-none focus:ring-2 focus:ring-blue-500 outline-none dark:bg-gray-800 dark:border-gray-700 dark:text-white" 
-              rows={3}
-              placeholder="Type your comment..."
+              className="w-full h-32 p-4 bg-secondary/50 border border-border rounded-xl text-sm mb-4 resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-white placeholder:text-muted-foreground/50" 
+              placeholder="Provide technical feedback or suggestions..."
               value={newComment}
               onChange={e => setNewComment(e.target.value)}
               autoFocus
             />
-            <div className="flex justify-end gap-2">
-              <button 
-                onClick={handleAddComment}
-                disabled={!newComment.trim()}
-                className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Post
-              </button>
-            </div>
+            
+            <button 
+              onClick={handleAddComment}
+              disabled={!newComment.trim()}
+              className="w-full h-11 bg-primary text-primary-foreground rounded-xl flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-widest hover:opacity-90 disabled:opacity-30 transition-all active:scale-[0.98]"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>Broadcast Comment</span>
+            </button>
           </div>
         )}
       </div>
