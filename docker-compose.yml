@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/markdown_flow?schema=public
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: opensessame
+    depends_on:
+      - db
+    networks:
+      - markdown-flow-net
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: markdown_flow
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - markdown-flow-net
+
+volumes:
+  db-data:
+
+networks:
+  markdown-flow-net:
+    driver: bridge
