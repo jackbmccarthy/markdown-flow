@@ -73,6 +73,7 @@ Authentication is handled via **Auth.js (NextAuth v5)** using credentials define
 
 - To log in, visit `/login`.
 - Use the `ADMIN_USERNAME` and `ADMIN_PASSWORD` defined in your `.env` file.
+- The login screen now uses **Username** instead of Email.
 - The system uses secure, HTTP-only session cookies to maintain your login.
 
 ### API Usage (for Bots)
