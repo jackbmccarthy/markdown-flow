@@ -23,6 +23,7 @@ Create a `.env` file in the root directory (or `.env.local` for local dev).
 | Variable | Description | Example |
 |----------|-------------|---------|
 | `DATABASE_URL` | PostgreSQL Connection String | `postgresql://user:pass@localhost:5432/markdown_flow` |
+| `DB_CA_CERT` | (Optional) CA Certificate for SSL | `-----BEGIN CERTIFICATE-----\nMIIDDT...` |
 | `NEXTAUTH_SECRET` | Random string for encryption | `openssl rand -base64 32` |
 | `NEXTAUTH_URL` | Base URL of the app | `http://localhost:3000` (or your domain) |
 
