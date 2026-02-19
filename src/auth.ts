@@ -8,21 +8,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
       credentials: {
-        email: {},
+        username: {},
         password: {},
       },
       authorize: async (credentials) => {
         const parsedCredentials = z
-          .object({ email: z.string(), password: z.string() })
+          .object({ username: z.string(), password: z.string() })
           .safeParse(credentials)
 
         if (parsedCredentials.success) {
-          const { email, password } = parsedCredentials.data
+          const { username, password } = parsedCredentials.data
           
           const adminUsername = process.env.ADMIN_USERNAME;
           const adminPassword = process.env.ADMIN_PASSWORD;
 
-          if (email === adminUsername && password === adminPassword) {
+          if (username === adminUsername && password === adminPassword) {
             return {
               id: "1",
               name: "Admin",

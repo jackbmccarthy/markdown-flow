@@ -12,9 +12,9 @@ export default function LoginForm() {
   return (
     <form action={dispatch} className="flex flex-col gap-4 w-full max-w-md">
       <input
-        name="email"
-        type="email"
-        placeholder="Email"
+        name="username"
+        type="text"
+        placeholder="Username"
         required
         className="p-2 border rounded text-black"
       />
