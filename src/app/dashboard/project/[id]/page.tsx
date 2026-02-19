@@ -1,14 +1,14 @@
-import { getSession, logout } from "@/lib/auth-service";
+import { auth, signOut } from "@/auth";
 import { getDb } from "@/lib/db";
 import { File } from "@/entities/File";
 import { User } from "@/entities/User";
 import { Project } from "@/entities/Project";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { 
-  ArrowLeft, 
-  FileText, 
-  Clock, 
+import {
+  ArrowLeft,
+  FileText,
+  Clock,
   ChevronRight,
   Plus,
   Search,
@@ -22,11 +22,11 @@ export const dynamic = "force-dynamic";
 
 export default async function ProjectPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  const session = await auth();
+  if (!session?.user?.email) redirect("/login");
 
   const db = await getDb();
-  const user = await db.getRepository(User).findOneBy({ email: session.user.username });
+  const user = await db.getRepository(User).findOneBy({ email: session.user.email as string });
   if (!user) redirect("/login");
 
   const project = await db.getRepository(Project).findOneBy({ id });
@@ -39,8 +39,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
 
   async function handleSignOut() {
     "use server";
-    await logout();
-    redirect("/login");
+    await signOut();
   }
 
   return (
@@ -53,17 +52,17 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
           </div>
           <span className="font-mono font-bold tracking-tighter text-lg">MF_FLOW</span>
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-2 text-sm">
-          <Link 
-            href="/dashboard" 
+          <Link
+            href="/dashboard"
             className="flex items-center gap-3 px-4 py-2 text-muted-foreground hover:text-white hover:bg-white/5 rounded-lg transition-colors"
           >
             <LayoutDashboard className="w-4 h-4" />
             <span>Dashboard</span>
           </Link>
-          <Link 
-            href="/settings" 
+          <Link
+            href="/settings"
             className="flex items-center gap-3 px-4 py-2 text-muted-foreground hover:text-white hover:bg-white/5 rounded-lg transition-colors"
           >
             <Settings className="w-4 h-4" />
@@ -84,8 +83,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
       <main className="flex-1 overflow-auto">
         <header className="h-16 border-b border-border/50 flex items-center justify-between px-8 bg-background/50 backdrop-blur-sm sticky top-0 z-20">
           <div className="flex items-center gap-4">
-            <Link 
-              href="/dashboard" 
+            <Link
+              href="/dashboard"
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -104,12 +103,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
               <h1 className="text-3xl font-bold text-white mb-2">Documentation Files</h1>
               <p className="text-muted-foreground">Manage and review markdown files for this project.</p>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <div className="relative group hidden sm:block">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-                <input 
-                  placeholder="Search files..." 
+                <input
+                  placeholder="Search files..."
                   className="bg-secondary/50 border border-border/50 rounded-xl h-10 pl-10 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all w-64"
                 />
               </div>
@@ -130,8 +129,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
             </div>
 
             {files.map((file) => (
-              <Link 
-                key={file.id} 
+              <Link
+                key={file.id}
                 href={`/dashboard/file/${file.id}`}
                 className="grid grid-cols-12 items-center px-6 py-4 bg-secondary/20 border border-border/30 rounded-2xl hover:border-primary/30 hover:bg-primary/5 transition-all group glass"
               >
@@ -148,7 +147,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ id: st
                     </span>
                   </div>
                 </div>
-                
+
                 <div className="col-span-3 flex items-center gap-2 text-sm text-muted-foreground font-mono">
                   <Clock className="w-3 h-3" />
                   <span>{file.createdAt.toLocaleDateString()}</span>

@@ -1,16 +1,16 @@
-import { getSession, logout } from "@/lib/auth-service";
+import { auth, signOut } from "@/auth";
 import { getDb } from "@/lib/db";
 import { Project } from "@/entities/Project";
 import { User } from "@/entities/User";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
-import { 
-  Plus, 
-  Folder, 
-  Settings, 
-  LogOut, 
-  ChevronRight, 
+import {
+  Plus,
+  Folder,
+  Settings,
+  LogOut,
+  ChevronRight,
   Clock,
   Terminal as TerminalIcon,
   LayoutDashboard
@@ -19,14 +19,14 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  const session = await auth();
+  if (!session?.user?.email) redirect("/login");
 
   const db = await getDb();
   // Using email as username/identifier
-  const user = await db.getRepository(User).findOneBy({ email: session.user.username });
+  const user = await db.getRepository(User).findOneBy({ email: session.user.email });
   if (!user) {
-    console.error("User not found in DB for session:", session.user.username);
+    console.error("User not found in DB for session:", session.user.email);
     redirect("/login");
   }
 
@@ -41,9 +41,9 @@ export default async function DashboardPage() {
     if (!name) return;
 
     const db = await getDb();
-    const session = await getSession();
-    const user = await db.getRepository(User).findOneBy({ email: session?.user?.username });
-    
+    const session = await auth();
+    const user = await db.getRepository(User).findOneBy({ email: session?.user?.email as string });
+
     if (user) {
       const project = new Project();
       project.name = name;
@@ -56,8 +56,7 @@ export default async function DashboardPage() {
 
   async function handleSignOut() {
     "use server";
-    await logout();
-    redirect("/login");
+    await signOut();
   }
 
   return (
@@ -70,17 +69,17 @@ export default async function DashboardPage() {
           </div>
           <span className="font-mono font-bold tracking-tighter text-lg">MF_FLOW</span>
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-2 text-sm">
-          <Link 
-            href="/dashboard" 
+          <Link
+            href="/dashboard"
             className="flex items-center gap-3 px-4 py-2 bg-primary/10 text-primary rounded-lg transition-colors"
           >
             <LayoutDashboard className="w-4 h-4" />
             <span>Dashboard</span>
           </Link>
-          <Link 
-            href="/settings" 
+          <Link
+            href="/settings"
             className="flex items-center gap-3 px-4 py-2 text-muted-foreground hover:text-white hover:bg-white/5 rounded-lg transition-colors"
           >
             <Settings className="w-4 h-4" />
@@ -105,10 +104,10 @@ export default async function DashboardPage() {
             <h2 className="font-semibold text-lg">Project Dashboard</h2>
             <div className="h-4 w-px bg-border mx-2" />
             <span className="text-xs font-mono text-muted-foreground bg-secondary px-2 py-1 rounded">
-              USER: {session.user.username}
+              USER: {session.user.email}
             </span>
           </div>
-          
+
           <div className="flex items-center gap-4">
             <Link href="/settings" className="lg:hidden text-muted-foreground">
               <Settings className="w-5 h-5" />
@@ -129,7 +128,7 @@ export default async function DashboardPage() {
                   <p className="text-sm text-muted-foreground">Create a new workspace for markdown reviews.</p>
                 </div>
               </div>
-              
+
               <form action={createProject} className="flex flex-col sm:flex-row gap-4">
                 <div className="flex-1 relative group">
                   <Folder className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-accent transition-colors" />
@@ -140,8 +139,8 @@ export default async function DashboardPage() {
                     className="w-full h-12 pl-10 pr-4 bg-background border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all font-mono"
                   />
                 </div>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   className="h-12 px-8 bg-white text-black font-bold rounded-xl hover:bg-accent hover:text-white transition-all active:scale-[0.98] shrink-0"
                 >
                   CREATE_PROJECT
@@ -160,8 +159,8 @@ export default async function DashboardPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {projects.map((project) => (
-                <Link 
-                  key={project.id} 
+                <Link
+                  key={project.id}
                   href={`/dashboard/project/${project.id}`}
                   className="group relative"
                 >
@@ -172,16 +171,16 @@ export default async function DashboardPage() {
                       </div>
                       <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-1" />
                     </div>
-                    
+
                     <h4 className="text-xl font-bold text-white mb-2 group-hover:text-primary transition-colors truncate">
                       {project.name}
                     </h4>
-                    
+
                     <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                       <Clock className="w-3 h-3" />
                       <span>{project.createdAt.toLocaleDateString()}</span>
                     </div>
-                    
+
                     {/* Progress indicator (placeholder) */}
                     <div className="mt-6 pt-6 border-t border-border/30 flex items-center justify-between">
                       <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Status</span>
@@ -190,7 +189,7 @@ export default async function DashboardPage() {
                   </div>
                 </Link>
               ))}
-              
+
               {projects.length === 0 && (
                 <div className="col-span-full py-20 border border-dashed border-border/50 rounded-2xl flex flex-col items-center justify-center text-center">
                   <div className="w-16 h-16 bg-secondary rounded-full flex items-center justify-center mb-4">

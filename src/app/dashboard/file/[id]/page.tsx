@@ -1,4 +1,4 @@
-import { getSession, logout } from "@/lib/auth-service";
+import { auth, signOut } from "@/auth";
 import { getDb } from "@/lib/db";
 import { File } from "@/entities/File";
 import { User } from "@/entities/User";
@@ -8,10 +8,10 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import MarkdownViewer from "@/components/MarkdownViewer";
-import { 
-  ArrowLeft, 
-  Settings, 
-  LogOut, 
+import {
+  ArrowLeft,
+  Settings,
+  LogOut,
   LayoutDashboard,
   Terminal as TerminalIcon,
   Activity,
@@ -23,11 +23,11 @@ export const dynamic = "force-dynamic";
 
 export default async function FilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  const session = await auth();
+  if (!session?.user?.email) redirect("/login");
 
   const db = await getDb();
-  const user = await db.getRepository(User).findOneBy({ email: session.user.username });
+  const user = await db.getRepository(User).findOneBy({ email: session.user.email as string });
   if (!user) redirect("/login");
 
   const file = await db.getRepository(File).findOneBy({ id });
@@ -57,9 +57,9 @@ export default async function FilePage({ params }: { params: Promise<{ id: strin
   async function addComment(lineNumber: number, content: string) {
     "use server";
     if (!content) return;
-    const session = await getSession();
-    const user = await getDb().then(db => db.getRepository(User).findOneBy({ email: session?.user?.username }));
-    
+    const session = await auth();
+    const user = await getDb().then(db => db.getRepository(User).findOneBy({ email: session?.user?.email as string }));
+
     if (user) {
       const comment = new Comment();
       comment.content = content;
@@ -67,7 +67,7 @@ export default async function FilePage({ params }: { params: Promise<{ id: strin
       comment.fileId = id;
       comment.author = user;
       comment.authorId = user.id;
-      
+
       const db = await getDb();
       await db.getRepository(Comment).save(comment);
       revalidatePath(`/dashboard/file/${id}`);
@@ -76,8 +76,7 @@ export default async function FilePage({ params }: { params: Promise<{ id: strin
 
   async function handleSignOut() {
     "use server";
-    await logout();
-    redirect("/login");
+    await signOut();
   }
 
   return (
@@ -87,7 +86,7 @@ export default async function FilePage({ params }: { params: Promise<{ id: strin
         <Link href="/dashboard" className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center hover:opacity-80 transition-all">
           <TerminalIcon className="w-6 h-6 text-primary-foreground" />
         </Link>
-        
+
         <nav className="flex-1 flex flex-col gap-4">
           <Link href="/dashboard" title="Dashboard" className="w-10 h-10 flex items-center justify-center rounded-xl text-muted-foreground hover:bg-white/5 hover:text-white transition-all">
             <LayoutDashboard className="w-5 h-5" />
@@ -110,7 +109,7 @@ export default async function FilePage({ params }: { params: Promise<{ id: strin
       <div className="flex-1 flex flex-col min-w-0">
         <header className="h-16 border-b border-border/50 flex items-center justify-between px-8 bg-background/50 backdrop-blur-sm z-20">
           <div className="flex items-center gap-4 min-w-0">
-            <Link 
+            <Link
               href={`/dashboard/project/${file.projectId}`}
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors shrink-0"
             >
@@ -141,10 +140,10 @@ export default async function FilePage({ params }: { params: Promise<{ id: strin
         </header>
 
         <div className="flex-1 overflow-hidden bg-[#0d0f14]">
-          <MarkdownViewer 
-            content={content} 
-            comments={formattedComments} 
-            onAddComment={addComment} 
+          <MarkdownViewer
+            content={content}
+            comments={formattedComments}
+            onAddComment={addComment}
           />
         </div>
       </div>

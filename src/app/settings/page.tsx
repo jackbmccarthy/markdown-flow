@@ -1,4 +1,4 @@
-import { getSession, logout } from "@/lib/auth-service";
+import { auth, signOut } from "@/auth";
 import { getDb } from "@/lib/db";
 import { User } from "@/entities/User";
 import { ApiKey } from "@/entities/ApiKey";
@@ -8,12 +8,12 @@ import { randomBytes } from "crypto";
 import { hash } from "bcryptjs";
 import CreateKeyForm from "./create-key-form";
 import Link from "next/link";
-import { 
-  ArrowLeft, 
-  Settings as SettingsIcon, 
-  Key, 
-  Shield, 
-  Trash2, 
+import {
+  ArrowLeft,
+  Settings as SettingsIcon,
+  Key,
+  Shield,
+  Trash2,
   Clock,
   LayoutDashboard,
   LogOut,
@@ -23,11 +23,11 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
-  const session = await getSession();
-  if (!session?.user) redirect("/login");
+  const session = await auth();
+  if (!session?.user?.email) redirect("/login");
 
   const db = await getDb();
-  const user = await db.getRepository(User).findOneBy({ email: session.user.username });
+  const user = await db.getRepository(User).findOneBy({ email: session.user.email });
   if (!user) redirect("/login");
 
   const apiKeys = await db.getRepository(ApiKey).find({
@@ -41,9 +41,9 @@ export default async function SettingsPage() {
     if (!name) return { rawKey: "" };
 
     const db = await getDb();
-    const session = await getSession();
-    const user = await db.getRepository(User).findOneBy({ email: session?.user?.username });
-    
+    const session = await auth();
+    const user = await db.getRepository(User).findOneBy({ email: session?.user?.email as string });
+
     const rawKey = "sk-" + randomBytes(32).toString("hex");
     const hashedKey = await hash(rawKey, 10);
     const prefix = rawKey.substring(0, 10) + "...";
@@ -55,10 +55,10 @@ export default async function SettingsPage() {
       apiKey.keyPrefix = prefix;
       apiKey.user = user;
       apiKey.userId = user.id;
-      
+
       await db.getRepository(ApiKey).save(apiKey);
       revalidatePath("/settings");
-      
+
       return { rawKey };
     }
     return { rawKey: "" };
@@ -67,8 +67,8 @@ export default async function SettingsPage() {
   async function revokeApiKey(id: string) {
     "use server";
     const db = await getDb();
-    const session = await getSession();
-    const user = await db.getRepository(User).findOneBy({ email: session?.user?.username });
+    const session = await auth();
+    const user = await db.getRepository(User).findOneBy({ email: session?.user?.email as string });
     if (user) {
       await db.getRepository(ApiKey).delete({ id, userId: user.id });
       revalidatePath("/settings");
@@ -77,8 +77,7 @@ export default async function SettingsPage() {
 
   async function handleSignOut() {
     "use server";
-    await logout();
-    redirect("/login");
+    await signOut();
   }
 
   return (
@@ -91,7 +90,7 @@ export default async function SettingsPage() {
           </div>
           <span className="font-mono font-bold tracking-tighter text-lg">MF_FLOW</span>
         </div>
-        
+
         <nav className="flex-1 p-4 space-y-2 text-sm">
           <Link href="/dashboard" className="flex items-center gap-3 px-4 py-2 text-muted-foreground hover:text-white hover:bg-white/5 rounded-lg transition-colors">
             <LayoutDashboard className="w-4 h-4" />
@@ -116,8 +115,8 @@ export default async function SettingsPage() {
       <main className="flex-1 overflow-auto">
         <header className="h-16 border-b border-border/50 flex items-center justify-between px-8 bg-background/50 backdrop-blur-sm sticky top-0 z-20">
           <div className="flex items-center gap-4">
-            <Link 
-              href="/dashboard" 
+            <Link
+              href="/dashboard"
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-muted-foreground hover:text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -145,7 +144,7 @@ export default async function SettingsPage() {
                   <p className="text-sm text-muted-foreground">Bot instances use these keys to upload documentation.</p>
                 </div>
               </div>
-              
+
               <div className="max-w-md">
                 <CreateKeyForm onCreate={createApiKey} />
               </div>
@@ -178,10 +177,10 @@ export default async function SettingsPage() {
                         </div>
                       </div>
                     </div>
-                    
+
                     <form action={revokeApiKey.bind(null, key.id)}>
-                      <button 
-                        type="submit" 
+                      <button
+                        type="submit"
                         className="w-10 h-10 flex items-center justify-center rounded-xl bg-red-500/5 text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
                         title="Revoke Key"
                       >

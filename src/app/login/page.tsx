@@ -1,4 +1,5 @@
-import { login } from "@/lib/auth-service";
+import { signIn } from "@/auth";
+import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage({
@@ -10,11 +11,13 @@ export default async function LoginPage({
 
   async function action(formData: FormData) {
     "use server";
-    const success = await login(formData);
-    if (success) {
-      redirect("/dashboard");
-    } else {
-      redirect("/login?error=Invalid credentials");
+    try {
+      await signIn("credentials", formData);
+    } catch (error) {
+      if (error instanceof AuthError) {
+        redirect("/login?error=Invalid credentials");
+      }
+      throw error; // Let Next.js handle redirects thrown by signIn
     }
   }
 
@@ -24,7 +27,7 @@ export default async function LoginPage({
         <h1 className="text-2xl font-bold mb-6 font-mono text-center tracking-tighter">
           MARKDOWN_FLOW LOGIN
         </h1>
-        
+
         <form action={action} className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-gray-500 uppercase">Username</label>
@@ -35,7 +38,7 @@ export default async function LoginPage({
               className="p-3 bg-[#0a0c10] border border-[#2d3139] rounded-lg focus:outline-none focus:border-[#00ff88] text-white font-mono"
             />
           </div>
-          
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold text-gray-500 uppercase">Password</label>
             <input
