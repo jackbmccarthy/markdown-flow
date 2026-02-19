@@ -3,8 +3,10 @@ import Credentials from "next-auth/providers/credentials"
 import { getDb } from "@/lib/db"
 import { User } from "@/entities/User"
 import bcrypt from "bcryptjs"
+import { authConfig } from "./auth.config"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+    ...authConfig,
     providers: [
         Credentials({
             credentials: {
@@ -20,7 +22,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
                     if (!user) return null;
 
-                    // Simple string check for our initial ENV_AUTH password bypass
                     if (user.passwordHash === "ENV_AUTH" && credentials.password === process.env.ADMIN_PASSWORD) {
                         return { id: user.id, email: user.email };
                     }
@@ -36,23 +37,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             },
         }),
     ],
-    callbacks: {
-        async jwt({ token, user }) {
-            if (user) {
-                token.sub = user.id;
-                token.email = user.email;
-            }
-            return token;
-        },
-        async session({ session, token }) {
-            if (token.sub && session.user) {
-                session.user.id = token.sub;
-                session.user.email = token.email as string;
-            }
-            return session;
-        },
-    },
-    pages: {
-        signIn: '/login',
-    }
 })
